@@ -5,7 +5,7 @@ use hyper::net::NetworkStream;
 
 use iron;
 use iron::prelude::*;
-use iron::{Handler, headers, Headers, method, Url};
+use iron::{headers, method, Handler, Headers, Url};
 
 use std::io::Cursor;
 
@@ -17,17 +17,32 @@ pub fn get<H: Handler>(path: &str, headers: Headers, handler: &H) -> IronResult<
 }
 
 /// Convenience method for making POST requests with a body to Iron Handlers.
-pub fn post<H: Handler>(path: &str, headers: Headers, body: &str, handler: &H) -> IronResult<Response> {
+pub fn post<H: Handler>(
+    path: &str,
+    headers: Headers,
+    body: &str,
+    handler: &H,
+) -> IronResult<Response> {
     request(method::Post, path, body, headers, handler)
 }
 
 /// Convenience method for making PATCH requests with a body to Iron Handlers.
-pub fn patch<H: Handler>(path: &str, headers: Headers, body: &str, handler: &H) -> IronResult<Response> {
+pub fn patch<H: Handler>(
+    path: &str,
+    headers: Headers,
+    body: &str,
+    handler: &H,
+) -> IronResult<Response> {
     request(method::Patch, path, body, headers, handler)
 }
 
 /// Convenience method for making PUT requests with a body to Iron Handlers.
-pub fn put<H: Handler>(path: &str, headers: Headers, body: &str, handler: &H) -> IronResult<Response> {
+pub fn put<H: Handler>(
+    path: &str,
+    headers: Headers,
+    body: &str,
+    handler: &H,
+) -> IronResult<Response> {
     request(method::Put, path, body, headers, handler)
 }
 
@@ -48,11 +63,13 @@ pub fn head<H: Handler>(path: &str, headers: Headers, handler: &H) -> IronResult
 
 /// Constructs an Iron::Request from the given parts and passes it to the
 /// `handle` method on the given Handler.
-pub fn request<H: Handler>(method: method::Method,
-                           path: &str,
-                           body: &str,
-                           headers: Headers,
-                           handler: &H) -> IronResult<Response> {
+pub fn request<H: Handler>(
+    method: method::Method,
+    path: &str,
+    body: &str,
+    headers: Headers,
+    handler: &H,
+) -> IronResult<Response> {
     let url = Url::parse(path).unwrap();
     // From iron 0.5.x, iron::Request contains private field. So, it is not good to
     // create iron::Request directly. Make http request and parse it with hyper,
@@ -77,7 +94,7 @@ pub fn request<H: Handler>(method: method::Method,
     };
 
     let mut stream = MockStream::new(Cursor::new(buffer.as_bytes().to_vec()));
-    let mut buf_reader = BufReader::new(&mut stream as &mut NetworkStream);
+    let mut buf_reader = BufReader::new(&mut stream as &mut dyn NetworkStream);
     let http_request = hyper::server::Request::new(&mut buf_reader, addr).unwrap();
     let mut req = Request::from_http(http_request, addr, &protocol).unwrap();
 
@@ -92,9 +109,9 @@ mod test {
     use iron::headers::Headers;
     use iron::mime::Mime;
     use iron::prelude::*;
-    use iron::{Handler, headers, status};
+    use iron::{headers, status, Handler};
 
-    use response::{extract_body_to_bytes, extract_body_to_string};
+    use crate::response::{extract_body_to_bytes, extract_body_to_string};
 
     use self::urlencoded::UrlEncodedBody;
 
@@ -112,7 +129,8 @@ mod test {
 
     impl Handler for RouterHandler {
         fn handle(&self, req: &mut Request) -> IronResult<Response> {
-            let params = req.extensions
+            let params = req
+                .extensions
                 .get::<router::Router>()
                 .expect("Expected to get a Router from the request extensions.");
             let id = params.find("id").unwrap();
@@ -125,7 +143,8 @@ mod test {
 
     impl Handler for PostHandler {
         fn handle(&self, req: &mut Request) -> IronResult<Response> {
-            let body = req.get_ref::<UrlEncodedBody>()
+            let body = req
+                .get_ref::<UrlEncodedBody>()
                 .expect("Expected to extract a UrlEncodedBody from the request");
             let first_name = body.get("first_name").unwrap()[0].to_owned();
             let last_name = body.get("last_name").unwrap()[0].to_owned();
@@ -139,18 +158,23 @@ mod test {
     impl Handler for UpdateHandler {
         fn handle(&self, req: &mut Request) -> IronResult<Response> {
             let id = {
-                let params = req.extensions
+                let params = req
+                    .extensions
                     .get::<router::Router>()
                     .expect("Expected to get a Router from request extensions.");
                 params.find("id").unwrap().parse::<String>().unwrap()
             };
 
-            let body = req.get_ref::<UrlEncodedBody>()
+            let body = req
+                .get_ref::<UrlEncodedBody>()
                 .expect("Expected to extract a UrlEncodedBody from the request");
             let first_name = body.get("first_name").unwrap()[0].to_owned();
             let last_name = body.get("last_name").unwrap()[0].to_owned();
 
-            Ok(Response::with((status::Ok, [first_name, last_name, id].join(" "))))
+            Ok(Response::with((
+                status::Ok,
+                [first_name, last_name, id].join(" "),
+            )))
         }
     }
 
@@ -192,10 +216,12 @@ mod test {
         let mut headers = Headers::new();
         let mime: Mime = "application/x-www-form-urlencoded".parse().unwrap();
         headers.set(headers::ContentType(mime));
-        let response = post("http://localhost:3000/users",
-                            headers,
-                            "first_name=Example&last_name=User",
-                            &PostHandler);
+        let response = post(
+            "http://localhost:3000/users",
+            headers,
+            "first_name=Example&last_name=User",
+            &PostHandler,
+        );
         let result = extract_body_to_bytes(response.unwrap());
 
         assert_eq!(result, b"Example User");
@@ -209,10 +235,12 @@ mod test {
         let mut headers = Headers::new();
         let mime: Mime = "application/x-www-form-urlencoded".parse().unwrap();
         headers.set(headers::ContentType(mime));
-        let response = patch("http://localhost:3000/users/1",
-                             headers,
-                             "first_name=Example&last_name=User",
-                             &router);
+        let response = patch(
+            "http://localhost:3000/users/1",
+            headers,
+            "first_name=Example&last_name=User",
+            &router,
+        );
         let result = extract_body_to_bytes(response.unwrap());
 
         assert_eq!(result, b"Example User 1");
@@ -226,10 +254,12 @@ mod test {
         let mut headers = Headers::new();
         let mime: Mime = "application/x-www-form-urlencoded".parse().unwrap();
         headers.set(headers::ContentType(mime));
-        let response = put("http://localhost:3000/users/2",
-                           headers,
-                           "first_name=Example&last_name=User",
-                           &router);
+        let response = put(
+            "http://localhost:3000/users/2",
+            headers,
+            "first_name=Example&last_name=User",
+            &router,
+        );
         let result = extract_body_to_bytes(response.unwrap());
 
         assert_eq!(result, b"Example User 2");
@@ -246,10 +276,13 @@ mod test {
         assert_eq!(result, b"1");
     }
 
-
     #[test]
     fn test_options() {
-        let response = options("http://localhost:3000/users/options", Headers::new(), &OptionsHandler);
+        let response = options(
+            "http://localhost:3000/users/options",
+            Headers::new(),
+            &OptionsHandler,
+        );
         let result = extract_body_to_bytes(response.unwrap());
 
         assert_eq!(result, b"ALLOW: GET,POST");
@@ -284,7 +317,11 @@ mod test {
 
     #[test]
     fn test_percent_decoded_url() {
-        let response = head("http://localhost:3000/some path with spaces", Headers::new(), &HeadHandler);
+        let response = head(
+            "http://localhost:3000/some path with spaces",
+            Headers::new(),
+            &HeadHandler,
+        );
         let result = extract_body_to_bytes(response.unwrap());
 
         assert_eq!(result, b"");

@@ -1,21 +1,20 @@
 /// Contains tooling for mocking various Iron objects.
-
 use hyper::net::NetworkStream;
 use std::any::Any;
-use std::io::{Read, Write, Result};
+use std::io::{Read, Result, Write};
 use std::net::SocketAddr;
 use std::time::Duration;
 
 /// A mock network stream
 #[derive(Clone)]
 pub struct MockStream<T> {
-    data: T
+    data: T,
 }
 
 impl<T> MockStream<T> {
     /// Create a new mock stream that reads from the given data
     pub fn new(data: T) -> MockStream<T> {
-        MockStream { data: data }
+        MockStream { data }
     }
 }
 

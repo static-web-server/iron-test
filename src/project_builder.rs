@@ -1,36 +1,40 @@
+use std::env;
+use std::fmt::Debug;
 use std::fs;
 use std::io::{self, Write};
-use std::env;
 use std::path::{Path, PathBuf};
-use std::fmt::Debug;
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
-use std::sync::{Mutex, Arc};
 
-static IRON_INTEGRATION_TEST_DIR : &'static str = "iron-integration-tests";
+static IRON_INTEGRATION_TEST_DIR: &'static str = "iron-integration-tests";
 
 #[derive(Debug, PartialEq, Clone)]
 struct FileBuilder {
     path: PathBuf,
-    body: Vec<u8>
+    body: Vec<u8>,
 }
 
 impl FileBuilder {
     /// creates new instance of FileBuilder
     pub fn new<P: AsRef<Path>, B: Into<Vec<u8>>>(path: P, body: B) -> FileBuilder {
-        FileBuilder { path: path.as_ref().to_path_buf(), body: body.into() }
+        FileBuilder {
+            path: path.as_ref().to_path_buf(),
+            body: body.into(),
+        }
     }
 
     fn mk(&self) -> Result<(), String> {
-        try!(mkdir_recursive(&self.dirname()));
+        mkdir_recursive(&self.dirname())?;
 
-        let mut file = try!(
-            fs::File::create(&self.path)
-                .with_err_msg(format!("Could not create file; path={}",
-                                      self.path.display())));
+        let mut file = fs::File::create(&self.path).with_err_msg(format!(
+            "Could not create file; path={}",
+            self.path.display()
+        ))?;
 
-        file.write_all(&self.body)
-            .with_err_msg(format!("Could not write to file; path={}",
-                                  self.path.display()))
+        file.write_all(&self.body).with_err_msg(format!(
+            "Could not write to file; path={}",
+            self.path.display()
+        ))
     }
 
     // FIXME: Panics if there's no parent
@@ -38,7 +42,6 @@ impl FileBuilder {
         &self.path.parent().expect("parent directory")
     }
 }
-
 
 /// An RAII guard that controls a temporary directory of test files.
 ///
@@ -65,7 +68,7 @@ impl ProjectBuilder {
         ProjectBuilder {
             name: name.to_string(),
             root: path.join(name),
-            files: vec!(),
+            files: vec![],
             lock: Arc::new(Mutex::new(())),
         }
     }
@@ -77,8 +80,12 @@ impl ProjectBuilder {
 
     /// Add a new file to the temporary directory with the given contents.
     pub fn file<P, B>(mut self, path: P, body: B) -> ProjectBuilder
-    where P: AsRef<Path>, B: Into<Vec<u8>> {
-        self.files.push(FileBuilder::new(self.root.join(&path), body));
+    where
+        P: AsRef<Path>,
+        B: Into<Vec<u8>>,
+    {
+        self.files
+            .push(FileBuilder::new(self.root.join(&path), body));
         self
     }
 
@@ -91,7 +98,7 @@ impl ProjectBuilder {
     pub fn build_with_result(&self) -> Result<(), String> {
         let _lock = self.lock.lock().unwrap();
         for file in self.files.iter() {
-            try!(file.mk());
+            file.mk()?;
         }
 
         Ok(())
@@ -100,9 +107,7 @@ impl ProjectBuilder {
 
 impl PartialEq for ProjectBuilder {
     fn eq(&self, other: &ProjectBuilder) -> bool {
-        self.name.eq(&other.name) &&
-            self.root.eq(&other.root) &&
-            self.files.eq(&other.files)
+        self.name.eq(&other.name) && self.root.eq(&other.root) && self.files.eq(&other.files)
     }
 }
 
@@ -110,18 +115,26 @@ impl Drop for ProjectBuilder {
     fn drop(&mut self) {
         let _lock = self.lock.lock().unwrap();
         match self.root().parent().map(BuilderPathExt::rm_rf) {
-            Some(Ok(_)) => debug!("Successfully cleaned up the test directory; path = {:?}", self.root().parent().unwrap()),
-            Some(Err(e)) => debug!("Failed to cleanup the test directory; path = {:?}; {}", self.root().parent().unwrap(), e),
-            None => debug!("Failed to cleanup the test directory; no parent")
+            Some(Ok(_)) => debug!(
+                "Successfully cleaned up the test directory; path = {:?}",
+                self.root().parent().unwrap()
+            ),
+            Some(Err(e)) => debug!(
+                "Failed to cleanup the test directory; path = {:?}; {}",
+                self.root().parent().unwrap(),
+                e
+            ),
+            None => debug!("Failed to cleanup the test directory; no parent"),
         }
     }
 }
 
 // Recursively creates the directory with all subdirectories
 fn mkdir_recursive(path: &Path) -> Result<(), String> {
-    fs::create_dir_all(path)
-        .with_err_msg(format!("could not create directory; path={}",
-                              path.display()))
+    fs::create_dir_all(path).with_err_msg(format!(
+        "could not create directory; path={}",
+        path.display()
+    ))
 }
 
 /// Convenience methods to show errors
@@ -135,7 +148,7 @@ impl<T, E: Debug> ErrMsg<T> for Result<T, E> {
     fn with_err_msg(self, val: String) -> Result<T, String> {
         match self {
             Ok(val) => Ok(val),
-            Err(err) => Err(format!("{}; original={:?}", val, err))
+            Err(err) => Err(format!("{}; original={:?}", val, err)),
         }
     }
 }
@@ -148,10 +161,12 @@ fn root(id: Uuid) -> PathBuf {
 
 fn integration_tests_dir() -> PathBuf {
     env::current_exe()
-        .map(|mut p| { p.pop(); p.join(IRON_INTEGRATION_TEST_DIR) })
+        .map(|mut p| {
+            p.pop();
+            p.join(IRON_INTEGRATION_TEST_DIR)
+        })
         .unwrap()
 }
-
 
 /// Convenience methods on Path
 pub trait BuilderPathExt {

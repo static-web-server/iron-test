@@ -9,15 +9,15 @@ version = "0.6.0"
 
 [dependencies]
 hyper = "0.10"
-iron = "0.6.0"
-log = "0.3.8"
-url = "1.6.0"
+iron = { git = "https://github.com/static-web-server/iron.git", branch = "master" }
+log = "0.3"
+url = "1.6"
 
 [dependencies.uuid]
 features = ["v4"]
 version = "0.5.1"
 
 [dev-dependencies]
-mime = "0.3.5"
-router = "0.6.0"
-urlencoded = "0.6.0"
+mime = "0.3"
+router = "0.6"
+urlencoded = "0.6"

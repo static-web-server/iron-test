@@ -3,8 +3,8 @@
 
 //! A set of convenience methods and constructors for making requests to Iron Handlers.
 
-extern crate iron;
 extern crate hyper;
+extern crate iron;
 extern crate url;
 extern crate uuid;
 

@@ -21,9 +21,9 @@ pub fn extract_body_to_bytes(response: Response) -> Vec<u8> {
 mod test {
     use iron::headers::Headers;
     use iron::prelude::*;
-    use iron::{Handler, status};
+    use iron::{status, Handler};
 
-    use request;
+    use crate::request;
 
     use super::*;
 
@@ -37,9 +37,7 @@ mod test {
 
     #[test]
     fn test_extract_body_to_string() {
-        let response = request::get("http://localhost:3000",
-                           Headers::new(),
-                           &HelloWorldHandler);
+        let response = request::get("http://localhost:3000", Headers::new(), &HelloWorldHandler);
         let result = extract_body_to_string(response.unwrap());
 
         assert_eq!(result, "Hello, world!");
@@ -47,9 +45,7 @@ mod test {
 
     #[test]
     fn test_extract_body_to_bytes() {
-        let response = request::get("http://localhost:3000",
-                           Headers::new(),
-                           &HelloWorldHandler);
+        let response = request::get("http://localhost:3000", Headers::new(), &HelloWorldHandler);
         let result = extract_body_to_bytes(response.unwrap());
 
         assert_eq!(result, b"Hello, world!");
